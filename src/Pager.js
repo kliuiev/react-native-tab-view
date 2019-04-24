@@ -363,6 +363,20 @@ export default class Pager<T: Route> extends React.Component<Props<T>> {
     };
 
     return block([
+      call([this._index], ([value]) => {
+        // If the index changed, retrieve it asap
+        this.props.onIndexChange(value);
+
+        // Without this check, the pager can go to an infinite update <-> animate loop for sync updates
+        if (value !== this.props.navigationState.index) {
+          this._pendingIndexValue = value;
+
+          // Force componentDidUpdate to fire, whether user does a setState or not
+          // This allows us to detect when the user drops the update and revert back
+          // It's necessary to make sure that the state stays in sync
+          this.forceUpdate();
+        }
+      }),
       cond(clockRunning(this._clock), NOOP, [
         // Animation wasn't running before
         // Set the initial values and start the clock
@@ -405,21 +419,7 @@ export default class Pager<T: Route> extends React.Component<Props<T>> {
         set(this._gestureX, 0),
         set(this._velocityX, 0),
         // When the animation finishes, stop the clock
-        stopClock(this._clock),
-        call([this._index], ([value]) => {
-          // If the index changed, and previous animation has finished, update state
-          this.props.onIndexChange(value);
-
-          // Without this check, the pager can go to an infinite update <-> animate loop for sync updates
-          if (value !== this.props.navigationState.index) {
-            this._pendingIndexValue = value;
-
-            // Force componentDidUpdate to fire, whether user does a setState or not
-            // This allows us to detect when the user drops the update and revert back
-            // It's necessary to make sure that the state stays in sync
-            this.forceUpdate();
-          }
-        }),
+        stopClock(this._clock)
       ]),
     ]);
   };
